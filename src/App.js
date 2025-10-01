@@ -23,6 +23,7 @@ function App() {
     inputOutput: true,
     constraints: true,
     examples: true,
+    edgeCases: true, 
     approaches: true,
     justification: true,
     variants: true,
@@ -51,6 +52,7 @@ function App() {
       showPseudocode: true,
     },
   ]);
+  const [edgeCases, setEdgeCases] = useState([""]);
   const [justification, setJustification] = useState([""]);
   const [variants, setVariants] = useState([""]);
 
@@ -233,6 +235,53 @@ function App() {
           </AccordionDetails>
         </Accordion>
       )}
+      {/* Edge Cases */}
+{showSections.edgeCases && (
+  <Accordion>
+    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <Typography>⚠️ Edge Case Checklist</Typography>
+    </AccordionSummary>
+    <AccordionDetails>
+      <Stack spacing={2}>
+        {edgeCases.map((ec, i) => (
+          <Stack
+            key={i}
+            direction="row"
+            spacing={1}
+            alignItems="flex-start"
+          >
+            <TextField
+              label={`Edge Case ${i + 1}`}
+              fullWidth
+              multiline
+              rows={2}
+              value={ec}
+              onChange={(e) => {
+                const newEC = [...edgeCases];
+                newEC[i] = e.target.value;
+                setEdgeCases(newEC);
+              }}
+            />
+            <IconButton
+              onClick={() =>
+                setEdgeCases(edgeCases.filter((_, idx) => idx !== i))
+              }
+            >
+              <DeleteIcon />
+            </IconButton>
+          </Stack>
+        ))}
+        <Button
+          startIcon={<AddIcon />}
+          onClick={() => setEdgeCases([...edgeCases, ""])}
+        >
+          Add Edge Case
+        </Button>
+      </Stack>
+    </AccordionDetails>
+  </Accordion>
+)}
+
 
       {/* Examples */}
       {showSections.examples && (
