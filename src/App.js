@@ -23,23 +23,17 @@ function App() {
     inputOutput: true,
     constraints: true,
     examples: true,
-    edgeCases: true, 
+    edgeCases: true,
     approaches: true,
     justification: true,
     variants: true,
   });
 
   const [title, setTitle] = useState("");
-  const [problemUnderstanding, setProblemUnderstanding] = useState({
-    readIdentify: "",
-    goal: "",
-    paraphrase: "",
-  });
+  const [problemUnderstanding, setProblemUnderstanding] = useState(""); // updated
   const [inputOutput, setInputOutput] = useState({ input: "", output: "" });
   const [constraints, setConstraints] = useState([""]);
-  const [examples, setExamples] = useState([
-    { input: "", output: "", type: "" },
-  ]);
+  const [examples, setExamples] = useState([{ input: "", output: "", type: "" }]);
   const [approaches, setApproaches] = useState([
     {
       name: "",
@@ -59,9 +53,7 @@ function App() {
   const handleDownload = () => {
     const mdContent = generateMarkdown({
       title,
-      problemUnderstanding: showSections.problemUnderstanding
-        ? problemUnderstanding
-        : {},
+      problemUnderstanding: showSections.problemUnderstanding ? problemUnderstanding : "",
       inputOutput: showSections.inputOutput ? inputOutput : {},
       constraints: showSections.constraints ? constraints : [],
       examples: showSections.examples ? examples : [],
@@ -117,41 +109,14 @@ function App() {
             <Typography>💡 Understand the Problem</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Stack spacing={2}>
-              <TextField
-                label="Read & Identify"
-                fullWidth
-                value={problemUnderstanding.readIdentify}
-                onChange={(e) =>
-                  setProblemUnderstanding({
-                    ...problemUnderstanding,
-                    readIdentify: e.target.value,
-                  })
-                }
-              />
-              <TextField
-                label="Goal"
-                fullWidth
-                value={problemUnderstanding.goal}
-                onChange={(e) =>
-                  setProblemUnderstanding({
-                    ...problemUnderstanding,
-                    goal: e.target.value,
-                  })
-                }
-              />
-              <TextField
-                label="Paraphrase"
-                fullWidth
-                value={problemUnderstanding.paraphrase}
-                onChange={(e) =>
-                  setProblemUnderstanding({
-                    ...problemUnderstanding,
-                    paraphrase: e.target.value,
-                  })
-                }
-              />
-            </Stack>
+            <TextField
+              label="Problem Understanding (one line per point)"
+              fullWidth
+              multiline
+              rows={4}
+              value={problemUnderstanding}
+              onChange={(e) => setProblemUnderstanding(e.target.value)}
+            />
           </AccordionDetails>
         </Accordion>
       )}
@@ -193,19 +158,14 @@ function App() {
       {showSections.constraints && (
         <Accordion>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography>Constraints</Typography>
+            <Typography>📝 Constraints</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2}>
               {constraints.map((c, i) => (
-                <Stack
-                  key={i}
-                  direction="row"
-                  spacing={1}
-                  alignItems="flex-start"
-                >
+                <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
                   <TextField
-                    label={`Constraint ${i + 1} (use line breaks for multiple)`}
+                    label={`Constraint ${i + 1} (one line per bullet)`}
                     fullWidth
                     multiline
                     rows={2}
@@ -225,63 +185,50 @@ function App() {
                   </IconButton>
                 </Stack>
               ))}
-              <Button
-                startIcon={<AddIcon />}
-                onClick={() => setConstraints([...constraints, ""])}
-              >
+              <Button startIcon={<AddIcon />} onClick={() => setConstraints([...constraints, ""])}>
                 Add Constraint
               </Button>
             </Stack>
           </AccordionDetails>
         </Accordion>
       )}
-      {/* Edge Cases */}
-{showSections.edgeCases && (
-  <Accordion>
-    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-      <Typography>⚠️ Edge Case Checklist</Typography>
-    </AccordionSummary>
-    <AccordionDetails>
-      <Stack spacing={2}>
-        {edgeCases.map((ec, i) => (
-          <Stack
-            key={i}
-            direction="row"
-            spacing={1}
-            alignItems="flex-start"
-          >
-            <TextField
-              label={`Edge Case ${i + 1}`}
-              fullWidth
-              multiline
-              rows={2}
-              value={ec}
-              onChange={(e) => {
-                const newEC = [...edgeCases];
-                newEC[i] = e.target.value;
-                setEdgeCases(newEC);
-              }}
-            />
-            <IconButton
-              onClick={() =>
-                setEdgeCases(edgeCases.filter((_, idx) => idx !== i))
-              }
-            >
-              <DeleteIcon />
-            </IconButton>
-          </Stack>
-        ))}
-        <Button
-          startIcon={<AddIcon />}
-          onClick={() => setEdgeCases([...edgeCases, ""])}
-        >
-          Add Edge Case
-        </Button>
-      </Stack>
-    </AccordionDetails>
-  </Accordion>
-)}
 
+      {/* Edge Cases */}
+      {showSections.edgeCases && (
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography>⚠️ Edge Case Checklist</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              {edgeCases.map((ec, i) => (
+                <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
+                  <TextField
+                    label={`Edge Case ${i + 1}`}
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={ec}
+                    onChange={(e) => {
+                      const newEC = [...edgeCases];
+                      newEC[i] = e.target.value;
+                      setEdgeCases(newEC);
+                    }}
+                  />
+                  <IconButton
+                    onClick={() => setEdgeCases(edgeCases.filter((_, idx) => idx !== i))}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Stack>
+              ))}
+              <Button startIcon={<AddIcon />} onClick={() => setEdgeCases([...edgeCases, ""])}>
+                Add Edge Case
+              </Button>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+      )}
 
       {/* Examples */}
       {showSections.examples && (
@@ -304,9 +251,7 @@ function App() {
                       }}
                     />
                     <IconButton
-                      onClick={() =>
-                        setExamples(examples.filter((_, idx) => idx !== i))
-                      }
+                      onClick={() => setExamples(examples.filter((_, idx) => idx !== i))}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -340,10 +285,7 @@ function App() {
               <Button
                 startIcon={<AddIcon />}
                 onClick={() =>
-                  setExamples([
-                    ...examples,
-                    { input: "", output: "", type: "" },
-                  ])
+                  setExamples([...examples, { input: "", output: "", type: "" }])
                 }
               >
                 Add Example
@@ -362,13 +304,7 @@ function App() {
           <AccordionDetails>
             <Stack spacing={2}>
               {approaches.map((app, i) => (
-                <Stack
-                  key={i}
-                  spacing={1}
-                  border={1}
-                  borderRadius={2}
-                  padding={1}
-                >
+                <Stack key={i} spacing={1} border={1} borderRadius={2} padding={1}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <TextField
                       label="Approach Name"
@@ -525,9 +461,7 @@ function App() {
                   />
                   <IconButton
                     onClick={() =>
-                      setJustification(
-                        justification.filter((_, idx) => idx !== i)
-                      )
+                      setJustification(justification.filter((_, idx) => idx !== i))
                     }
                   >
                     <DeleteIcon />
@@ -568,18 +502,13 @@ function App() {
                     }}
                   />
                   <IconButton
-                    onClick={() =>
-                      setVariants(variants.filter((_, idx) => idx !== i))
-                    }
+                    onClick={() => setVariants(variants.filter((_, idx) => idx !== i))}
                   >
                     <DeleteIcon />
                   </IconButton>
                 </Stack>
               ))}
-              <Button
-                startIcon={<AddIcon />}
-                onClick={() => setVariants([...variants, ""])}
-              >
+              <Button startIcon={<AddIcon />} onClick={() => setVariants([...variants, ""])}>
                 Add Variant
               </Button>
             </Stack>
