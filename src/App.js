@@ -292,176 +292,133 @@ function SectionEditor({ state, setState, handleTabKey }) {
 }
 
 /* --- Algorithm Editor --- */
+/* --- Algorithm Editor (Now like Problem Understanding) --- */
 function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
+  const algo = algorithms[0] || { name: "", description: "", subsections: [] };
+
+  const updateField = (key, value) => {
+    const updated = { ...algo, [key]: value };
+    setAlgorithms([updated]);
+  };
+
+  const updateSubsection = (idx, key, value) => {
+    const newSubs = [...(algo.subsections || [])];
+    newSubs[idx][key] = value;
+    updateField("subsections", newSubs);
+  };
+
+  const addSubsection = () => {
+    updateField("subsections", [...(algo.subsections || []), { heading: "", content: "" }]);
+  };
+
+  const deleteSubsection = (idx) => {
+    updateField(
+      "subsections",
+      algo.subsections.filter((_, i) => i !== idx)
+    );
+  };
+
   return (
     <Stack spacing={2}>
-      {algorithms.map((algo, idx) => (
-        <Stack key={idx} spacing={1} sx={{ borderLeft: "2px solid #ddd", pl: 1 }}>
+      <TextField
+        label="Algorithm Name"
+        fullWidth
+        value={algo.name || ""}
+        onChange={(e) => updateField("name", e.target.value)}
+      />
+
+      <TextField
+        label="Algorithm Description"
+        fullWidth
+        multiline
+        minRows={3}
+        value={algo.description || ""}
+        onChange={(e) => updateField("description", e.target.value)}
+        onKeyDown={(e) => handleTabKey(e, algo, setAlgorithms)}
+      />
+
+      {(algo.subsections || []).map((sub, idx) => (
+        <Stack key={idx} spacing={1} sx={{ borderLeft: "2px solid #ddd", pl: 2 }}>
           <TextField
-            label="Problem"
-            value={algo.problem}
-            onChange={(e) => {
-              const newAlgo = [...algorithms];
-              newAlgo[idx].problem = e.target.value;
-              setAlgorithms(newAlgo);
-            }}
-            fullWidth
+            label="Subheading (e.g., Idea, Steps, Example)"
+            value={sub.heading}
+            onChange={(e) => updateSubsection(idx, "heading", e.target.value)}
           />
           <TextField
-            label="Example"
+            label="Content (supports nested bullets)"
             multiline
             minRows={2}
-            value={algo.example}
-            onChange={(e) => {
-              const newAlgo = [...algorithms];
-              newAlgo[idx].example = e.target.value;
-              setAlgorithms(newAlgo);
-            }}
+            value={sub.content}
+            onChange={(e) => updateSubsection(idx, "content", e.target.value)}
+            onKeyDown={(e) => handleTabKey(e, algo, setAlgorithms, idx, "content")}
           />
-          <TextField
-            label="Idea (nested bullets supported)"
-            multiline
-            minRows={2}
-            value={algo.idea}
-            onChange={(e) => {
-              const newAlgo = [...algorithms];
-              newAlgo[idx].idea = e.target.value;
-              setAlgorithms(newAlgo);
-            }}
-            onKeyDown={(e) => handleTabKey(e, algorithms, setAlgorithms, idx, "idea")}
-          />
-          <TextField
-            label="Steps (nested bullets supported)"
-            multiline
-            minRows={2}
-            value={algo.steps}
-            onChange={(e) => {
-              const newAlgo = [...algorithms];
-              newAlgo[idx].steps = e.target.value;
-              setAlgorithms(newAlgo);
-            }}
-            onKeyDown={(e) => handleTabKey(e, algorithms, setAlgorithms, idx, "steps")}
-          />
-          <IconButton onClick={() => setAlgorithms(algorithms.filter((_, i) => i !== idx))}>
+          <IconButton onClick={() => deleteSubsection(idx)}>
             <DeleteIcon />
           </IconButton>
         </Stack>
       ))}
-      <Button
-        startIcon={<AddIcon />}
-        onClick={() =>
-          setAlgorithms([...algorithms, { problem: "", example: "", idea: "", steps: "" }])
-        }
-      >
-        Add Algorithm
+
+      <Button startIcon={<AddIcon />} onClick={addSubsection}>
+        Add Subsection
       </Button>
     </Stack>
   );
 }
 
-/* --- Examples Editor --- */
-/* --- Examples Editor --- */
+/* --- Examples Editor (Single field + Subsections like Problem Understanding) --- */
 function ExamplesEditor({ examples, setExamples }) {
+  const example = examples[0] || { description: "", subsections: [] };
+
+  const updateDescription = (value) => {
+    setExamples([{ ...example, description: value }]);
+  };
+
+  const addSubsection = () => {
+    setExamples([{ ...example, subsections: [...(example.subsections || []), { content: "" }] }]);
+  };
+
+  const updateSub = (idx, value) => {
+    const newSubs = [...(example.subsections || [])];
+    newSubs[idx].content = value;
+    setExamples([{ ...example, subsections: newSubs }]);
+  };
+
+  const deleteSubsection = (idx) => {
+    setExamples([{ ...example, subsections: example.subsections.filter((_, i) => i !== idx) }]);
+  };
+
   return (
     <Stack spacing={2}>
-      {examples.map((ex, i) => (
-        <Stack key={i} spacing={1} border={1} borderRadius={2} padding={1}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="subtitle1">Example {i + 1}</Typography>
-            <IconButton onClick={() => setExamples(examples.filter((_, idx) => idx !== i))}>
-              <DeleteIcon />
-            </IconButton>
-          </Stack>
+      <TextField
+        label="Examples (paste all examples here)"
+        fullWidth
+        multiline
+        minRows={5}
+        value={example.description}
+        onChange={(e) => updateDescription(e.target.value)}
+      />
 
+      {(example.subsections || []).map((sub, idx) => (
+        <Stack key={idx} spacing={1} sx={{ borderLeft: "2px solid #ddd", pl: 1 }}>
           <TextField
-            label="Example Content (Input + Output or any text)"
-            fullWidth
+            label={`Subsection ${idx + 1}`}
             multiline
-            minRows={5}
-            value={ex.content || ""}
-            onChange={(e) => {
-              const newEx = [...examples];
-              newEx[i].content = e.target.value;
-              setExamples(newEx);
-            }}
-            onKeyDown={(e) => {
-              // Allow tab indentation for nested formatting
-              if (e.key === "Tab") {
-                e.preventDefault();
-                const insertSpaces = "  ";
-                const newEx = [...examples];
-                newEx[i].content = (newEx[i].content || "") + insertSpaces;
-                setExamples(newEx);
-              }
-            }}
+            minRows={3}
+            value={sub.content}
+            onChange={(e) => updateSub(idx, e.target.value)}
           />
+          <IconButton onClick={() => deleteSubsection(idx)}>
+            <DeleteIcon />
+          </IconButton>
         </Stack>
       ))}
 
-      <Button
-        startIcon={<AddIcon />}
-        onClick={() => setExamples([...examples, { content: "" }])}
-      >
-        Add Example
+      <Button startIcon={<AddIcon />} onClick={addSubsection}>
+        Add Subsection
       </Button>
     </Stack>
   );
 }
-
-// function ExamplesEditor({ examples, setExamples }) {
-//   return (
-//     <Stack spacing={2}>
-//       {examples.map((ex, i) => (
-//         <Stack key={i} spacing={1} border={1} borderRadius={2} padding={1}>
-//           <Stack direction="row" spacing={1} alignItems="center">
-//             <TextField
-//               label="Type"
-//               value={ex.type}
-//               onChange={(e) => {
-//                 const newEx = [...examples];
-//                 newEx[i].type = e.target.value;
-//                 setExamples(newEx);
-//               }}
-//             />
-//             <IconButton onClick={() => setExamples(examples.filter((_, idx) => idx !== i))}>
-//               <DeleteIcon />
-//             </IconButton>
-//           </Stack>
-//           <TextField
-//             label="Input"
-//             fullWidth
-//             multiline
-//             rows={2}
-//             value={ex.input}
-//             onChange={(e) => {
-//               const newEx = [...examples];
-//               newEx[i].input = e.target.value;
-//               setExamples(newEx);
-//             }}
-//           />
-//           <TextField
-//             label="Output"
-//             fullWidth
-//             multiline
-//             rows={2}
-//             value={ex.output}
-//             onChange={(e) => {
-//               const newEx = [...examples];
-//               newEx[i].output = e.target.value;
-//               setExamples(newEx);
-//             }}
-//           />
-//         </Stack>
-//       ))}
-//       <Button
-//         startIcon={<AddIcon />}
-//         onClick={() => setExamples([...examples, { type: "", input: "", output: "" }])}
-//       >
-//         Add Example
-//       </Button>
-//     </Stack>
-//   );
-// }
 
 /* --- Approaches Editor --- */
 function ApproachesEditor({ approaches, setApproaches }) {
