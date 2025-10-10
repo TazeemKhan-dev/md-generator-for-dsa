@@ -9,7 +9,8 @@ import {
   Typography,
   IconButton,
   Stack,
-  Checkbox,Box,
+  Checkbox,
+  Box,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
@@ -40,7 +41,7 @@ export default function App() {
   });
 
   const [algorithms, setAlgorithms] = useState([
-    { problem: "", example: "", idea: "", steps: "" },
+    { problem: "", example: "", idea: "", steps: "", subsections: [] },
   ]);
 
   const [constraints, setConstraints] = useState({
@@ -53,11 +54,12 @@ export default function App() {
     subsections: [],
   });
 
-  const [examples, setExamples] = useState([{ type: "", input: "", output: "" }]);
-const [approaches, setApproaches] = useState([
-  { name: "", idea: "", steps: "", pseudocode: "", javaCode: "", complexity: "" },
-]);
-
+  const [examples, setExamples] = useState([
+    { description: "", subsections: [] },
+  ]);
+  const [approaches, setApproaches] = useState([
+    { name: "", idea: "", steps: "", javaCode: "", complexity: "" },
+  ]);
 
   const [justification, setJustification] = useState({
     description: "",
@@ -74,16 +76,83 @@ const [approaches, setApproaches] = useState([
     subsections: [],
   });
 
-  const handleTabKey = (e, sectionState, setSectionState, idx, subfield) => {
+  /* --- TAB & SHIFT+TAB handler --- */
+  const handleTabKey = (e, state, setState, idx, field, type) => {
+    const textarea = e.target;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const insertSpaces = "  "; // 2 spaces
+
     if (e.key === "Tab") {
       e.preventDefault();
-      const insertSpaces = "  ";
-      if (subfield) {
-        const newSub = [...sectionState.subsections];
-        newSub[idx][subfield] += insertSpaces;
-        setSectionState({ ...sectionState, subsections: newSub });
+
+      let value = "";
+      if (type === "section") {
+        value = field ? state.subsections[idx][field] : state.description;
+      } else if (type === "algorithm") {
+        value = field ? state.subsections[idx][field] : state.description;
+      } else if (type === "examples") {
+        value = field ? state.subsections[idx][field] : state.description;
+      } else if (type === "approaches") {
+        value = state[idx][field];
+      }
+
+      // multi-line selection
+      const lines = value.substring(start, end).split("\n");
+      const beforeSelection = value.substring(0, start);
+      const afterSelection = value.substring(end);
+
+      if (e.shiftKey) {
+        // SHIFT+TAB → unindent
+        const newLines = lines.map((line) =>
+          line.startsWith(insertSpaces)
+            ? line.substring(insertSpaces.length)
+            : line.startsWith(" ")
+            ? line.substring(1)
+            : line
+        );
+        const newValue = beforeSelection + newLines.join("\n") + afterSelection;
+        if (type === "section") {
+          if (field) {
+            const newSub = [...state.subsections];
+            newSub[idx][field] = newValue;
+            setState({ ...state, subsections: newSub });
+          } else {
+            setState({ ...state, description: newValue });
+          }
+        } else if (type === "approaches") {
+          const newApps = [...state];
+          newApps[idx][field] = newValue;
+          setState(newApps);
+        }
+        // reset cursor
+        setTimeout(() => {
+          textarea.selectionStart = start;
+          textarea.selectionEnd = start + newLines.join("\n").length;
+        }, 0);
       } else {
-        setSectionState({ ...sectionState, description: sectionState.description + insertSpaces });
+        // TAB → insert spaces
+        const newLines = lines.map((line) => insertSpaces + line);
+        const newValue = beforeSelection + newLines.join("\n") + afterSelection;
+
+        if (type === "section") {
+          if (field) {
+            const newSub = [...state.subsections];
+            newSub[idx][field] = newValue;
+            setState({ ...state, subsections: newSub });
+          } else {
+            setState({ ...state, description: newValue });
+          }
+        } else if (type === "approaches") {
+          const newApps = [...state];
+          newApps[idx][field] = newValue;
+          setState(newApps);
+        }
+
+        setTimeout(() => {
+          textarea.selectionStart = start + insertSpaces.length;
+          textarea.selectionEnd = end + insertSpaces.length * lines.length;
+        }, 0);
       }
     }
   };
@@ -103,13 +172,14 @@ const [approaches, setApproaches] = useState([
       showSections,
     });
 
-    let filename = (title.trim() || "problem").toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w\-]+/g, '')
-      .replace(/\-\-+/g, '-')
-      .replace(/^-+/, '')
-      .replace(/-+$/, '');
-    if (!filename) filename = "problem"; 
+    let filename = (title.trim() || "problem")
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w\-]+/g, "")
+      .replace(/\-\-+/g, "-")
+      .replace(/^-+/, "")
+      .replace(/-+$/, "");
+    if (!filename) filename = "problem";
     const fullFilename = `${filename}.md`;
 
     const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
@@ -127,108 +197,165 @@ const [approaches, setApproaches] = useState([
       onChange={() => setExpandedSection(expandedSection === key ? "" : key)}
     >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography>{icon} {label}</Typography>
+        <Typography>
+          {icon} {label}
+        </Typography>
       </AccordionSummary>
       <AccordionDetails>{children}</AccordionDetails>
     </Accordion>
   );
 
   return (
-     <><Box sx={{ padding: 20, maxWidth: "1200px", margin: "0 auto" }}>
-     <Stack spacing={2} sx={{ padding: 4 }}>
-      {/* Title Input */}
-      <TextField
-        fullWidth
-        label="Question Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)} />
+    <Box sx={{ padding: 20, maxWidth: "1200px", margin: "0 auto" }}>
+      <Stack spacing={2} sx={{ padding: 4 }}>
+        <TextField
+          fullWidth
+          label="Question Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
 
-      {/* Section Toggles */}
-      <Stack direction="row" spacing={2}>
-        {Object.keys(showSections).map((sec) => (
-          <FormControlLabel
-            key={sec}
-            control={<Checkbox
-              checked={showSections[sec]}
-              onChange={() => setShowSections({ ...showSections, [sec]: !showSections[sec] })} />}
-            label={sec.replace(/([A-Z])/g, " $1").trim()} />
-        ))}
+        <Stack direction="row" spacing={2}>
+          {Object.keys(showSections).map((sec) => (
+            <FormControlLabel
+              key={sec}
+              control={
+                <Checkbox
+                  checked={showSections[sec]}
+                  onChange={() =>
+                    setShowSections({
+                      ...showSections,
+                      [sec]: !showSections[sec],
+                    })
+                  }
+                />
+              }
+              label={sec.replace(/([A-Z])/g, " $1").trim()}
+            />
+          ))}
+        </Stack>
+
+        {showSections.problemUnderstanding &&
+          renderAccordion(
+            "problemUnderstanding",
+            "Understand the Problem",
+            "💡",
+            <SectionEditor
+              state={problemUnderstanding}
+              setState={setProblemUnderstanding}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        {showSections.algorithm &&
+          renderAccordion(
+            "algorithm",
+            "Algorithm",
+            "⚙️",
+            <AlgorithmEditor
+              algorithms={algorithms}
+              setAlgorithms={setAlgorithms}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        {showSections.constraints &&
+          renderAccordion(
+            "constraints",
+            "Constraints",
+            "📝",
+            <SectionEditor
+              state={constraints}
+              setState={setConstraints}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        {showSections.edgeCases &&
+          renderAccordion(
+            "edgeCases",
+            "Edge Cases",
+            "⚠️",
+            <SectionEditor
+              state={edgeCases}
+              setState={setEdgeCases}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        {showSections.examples &&
+          renderAccordion(
+            "examples",
+            "Examples",
+            "🧪",
+            <ExamplesEditor
+              examples={examples}
+              setExamples={setExamples}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        {showSections.approaches &&
+          renderAccordion(
+            "approaches",
+            "Approaches",
+            "🧠",
+            <ApproachesEditor
+              approaches={approaches}
+              setApproaches={setApproaches}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        {showSections.justification &&
+          renderAccordion(
+            "justification",
+            "Justification / Proof",
+            "✅",
+            <SectionEditor
+              state={justification}
+              setState={setJustification}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        {showSections.variants &&
+          renderAccordion(
+            "variants",
+            "Variants / Follow-Ups",
+            "⏭️",
+            <SectionEditor
+              state={variants}
+              setState={setVariants}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        {showSections.tips &&
+          renderAccordion(
+            "tips",
+            "Tips & Observations",
+            "💡",
+            <SectionEditor
+              state={tips}
+              setState={setTips}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        <Button
+          startIcon={<DownloadIcon />}
+          variant="contained"
+          onClick={downloadMarkdown}
+        >
+          Download Markdown
+        </Button>
       </Stack>
-
-      {/* Render all sections */}
-      {showSections.problemUnderstanding && renderAccordion(
-        "problemUnderstanding",
-        "Understand the Problem",
-        "💡",
-        <SectionEditor state={problemUnderstanding} setState={setProblemUnderstanding} handleTabKey={handleTabKey} />
-      )}
-
-      {showSections.algorithm && renderAccordion(
-        "algorithm",
-        "Algorithm",
-        "⚙️",
-        <AlgorithmEditor algorithms={algorithms} setAlgorithms={setAlgorithms} handleTabKey={handleTabKey} />
-      )}
-
-      {showSections.constraints && renderAccordion(
-        "constraints",
-        "Constraints",
-        "📝",
-        <SectionEditor state={constraints} setState={setConstraints} handleTabKey={handleTabKey} />
-      )}
-
-      {showSections.edgeCases && renderAccordion(
-        "edgeCases",
-        "Edge Cases",
-        "⚠️",
-        <SectionEditor state={edgeCases} setState={setEdgeCases} handleTabKey={handleTabKey} />
-      )}
-
-      {showSections.examples && renderAccordion(
-        "examples",
-        "Examples",
-        "🧪",
-        <ExamplesEditor examples={examples} setExamples={setExamples} />
-      )}
-
-      {showSections.approaches && renderAccordion(
-        "approaches",
-        "Approaches",
-        "🧠",
-        <ApproachesEditor approaches={approaches} setApproaches={setApproaches} />
-      )}
-
-      {showSections.justification && renderAccordion(
-        "justification",
-        "Justification / Proof",
-        "✅",
-        <SectionEditor state={justification} setState={setJustification} handleTabKey={handleTabKey} />
-      )}
-
-      {showSections.variants && renderAccordion(
-        "variants",
-        "Variants / Follow-Ups",
-        "⏭️",
-        <SectionEditor state={variants} setState={setVariants} handleTabKey={handleTabKey} />
-      )}
-
-      {showSections.tips && renderAccordion(
-        "tips",
-        "Tips & Observations",
-        "💡",
-        <SectionEditor state={tips} setState={setTips} handleTabKey={handleTabKey} />
-      )}
-
-      <Button startIcon={<DownloadIcon />} variant="contained" onClick={downloadMarkdown}>
-        Download Markdown
-      </Button>
-    </Stack>
-        </Box>
-          </>
+    </Box>
   );
 }
 
-/* --- Reusable SectionEditor --- */
+/* --- Section Editor --- */
 function SectionEditor({ state, setState, handleTabKey }) {
   return (
     <Stack spacing={1}>
@@ -239,10 +366,16 @@ function SectionEditor({ state, setState, handleTabKey }) {
         label="Description"
         value={state.description}
         onChange={(e) => setState({ ...state, description: e.target.value })}
-        onKeyDown={(e) => handleTabKey(e, state, setState)}
+        onKeyDown={(e) =>
+          handleTabKey(e, state, setState, null, null, "section")
+        }
       />
       {state.subsections.map((sub, idx) => (
-        <Stack key={idx} spacing={1} sx={{ borderLeft: "2px solid #ddd", pl: 1 }}>
+        <Stack
+          key={idx}
+          spacing={1}
+          sx={{ borderLeft: "2px solid #ddd", pl: 1 }}
+        >
           <TextField
             label="Subheading"
             value={sub.heading}
@@ -262,7 +395,9 @@ function SectionEditor({ state, setState, handleTabKey }) {
               newSub[idx].content = e.target.value;
               setState({ ...state, subsections: newSub });
             }}
-            onKeyDown={(e) => handleTabKey(e, state, setState, idx, "content")}
+            onKeyDown={(e) =>
+              handleTabKey(e, state, setState, idx, "content", "section")
+            }
           />
           <IconButton
             onClick={() =>
@@ -292,7 +427,6 @@ function SectionEditor({ state, setState, handleTabKey }) {
 }
 
 /* --- Algorithm Editor --- */
-/* --- Algorithm Editor (Now like Problem Understanding) --- */
 function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
   const algo = algorithms[0] || { name: "", description: "", subsections: [] };
 
@@ -308,7 +442,10 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
   };
 
   const addSubsection = () => {
-    updateField("subsections", [...(algo.subsections || []), { heading: "", content: "" }]);
+    updateField("subsections", [
+      ...(algo.subsections || []),
+      { heading: "", content: "" },
+    ]);
   };
 
   const deleteSubsection = (idx) => {
@@ -334,11 +471,17 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
         minRows={3}
         value={algo.description || ""}
         onChange={(e) => updateField("description", e.target.value)}
-        onKeyDown={(e) => handleTabKey(e, algo, setAlgorithms)}
+        onKeyDown={(e) =>
+          handleTabKey(e, algo, setAlgorithms, null, null, "algorithm")
+        }
       />
 
       {(algo.subsections || []).map((sub, idx) => (
-        <Stack key={idx} spacing={1} sx={{ borderLeft: "2px solid #ddd", pl: 2 }}>
+        <Stack
+          key={idx}
+          spacing={1}
+          sx={{ borderLeft: "2px solid #ddd", pl: 2 }}
+        >
           <TextField
             label="Subheading (e.g., Idea, Steps, Example)"
             value={sub.heading}
@@ -350,8 +493,11 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
             minRows={2}
             value={sub.content}
             onChange={(e) => updateSubsection(idx, "content", e.target.value)}
-            onKeyDown={(e) => handleTabKey(e, algo, setAlgorithms, idx, "content")}
+            onKeyDown={(e) =>
+              handleTabKey(e, algo, setAlgorithms, idx, "content", "algorithm")
+            }
           />
+
           <IconButton onClick={() => deleteSubsection(idx)}>
             <DeleteIcon />
           </IconButton>
@@ -365,17 +511,20 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
   );
 }
 
-/* --- Examples Editor (Single field + Subsections like Problem Understanding) --- */
-function ExamplesEditor({ examples, setExamples }) {
+/* --- Examples Editor --- */
+function ExamplesEditor({ examples, setExamples, handleTabKey }) {
   const example = examples[0] || { description: "", subsections: [] };
 
-  const updateDescription = (value) => {
+  const updateDescription = (value) =>
     setExamples([{ ...example, description: value }]);
-  };
 
-  const addSubsection = () => {
-    setExamples([{ ...example, subsections: [...(example.subsections || []), { content: "" }] }]);
-  };
+  const addSubsection = () =>
+    setExamples([
+      {
+        ...example,
+        subsections: [...(example.subsections || []), { content: "" }],
+      },
+    ]);
 
   const updateSub = (idx, value) => {
     const newSubs = [...(example.subsections || [])];
@@ -383,9 +532,13 @@ function ExamplesEditor({ examples, setExamples }) {
     setExamples([{ ...example, subsections: newSubs }]);
   };
 
-  const deleteSubsection = (idx) => {
-    setExamples([{ ...example, subsections: example.subsections.filter((_, i) => i !== idx) }]);
-  };
+  const deleteSubsection = (idx) =>
+    setExamples([
+      {
+        ...example,
+        subsections: example.subsections.filter((_, i) => i !== idx),
+      },
+    ]);
 
   return (
     <Stack spacing={2}>
@@ -396,16 +549,26 @@ function ExamplesEditor({ examples, setExamples }) {
         minRows={5}
         value={example.description}
         onChange={(e) => updateDescription(e.target.value)}
+        onKeyDown={(e) =>
+          handleTabKey(e, example, setExamples, null, null, "examples")
+        }
       />
 
       {(example.subsections || []).map((sub, idx) => (
-        <Stack key={idx} spacing={1} sx={{ borderLeft: "2px solid #ddd", pl: 1 }}>
+        <Stack
+          key={idx}
+          spacing={1}
+          sx={{ borderLeft: "2px solid #ddd", pl: 1 }}
+        >
           <TextField
             label={`Subsection ${idx + 1}`}
             multiline
             minRows={3}
             value={sub.content}
             onChange={(e) => updateSub(idx, e.target.value)}
+            onKeyDown={(e) =>
+              handleTabKey(e, example, setExamples, idx, "content", "examples")
+            }
           />
           <IconButton onClick={() => deleteSubsection(idx)}>
             <DeleteIcon />
@@ -421,107 +584,135 @@ function ExamplesEditor({ examples, setExamples }) {
 }
 
 /* --- Approaches Editor --- */
-function ApproachesEditor({ approaches, setApproaches }) {
+function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
   return (
-    
-    <Stack spacing={2} >
-      {approaches.map((app, i) => (
-        <Stack key={i} spacing={1} border={1} borderRadius={2} padding={1}>
+    <Stack spacing={2}>
+      {approaches.map((app, idx) => (
+        <Stack key={idx} spacing={1} border={1} borderRadius={2} padding={1}>
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField
               label="Approach Name"
               fullWidth
               value={app.name}
               onChange={(e) => {
-                const newApp = [...approaches];
-                newApp[i].name = e.target.value;
-                setApproaches(newApp);
+                const newApps = [...approaches];
+                newApps[idx].name = e.target.value;
+                setApproaches(newApps);
               }}
             />
-            <IconButton onClick={() => setApproaches(approaches.filter((_, idx) => idx !== i))}>
+            <IconButton
+              onClick={() =>
+                setApproaches(approaches.filter((_, i) => i !== idx))
+              }
+            >
               <DeleteIcon />
             </IconButton>
           </Stack>
+
           <TextField
             label="Idea"
             fullWidth
             multiline
-            rows={2}
+            minRows={2}
+            maxRows={10}
             value={app.idea}
             onChange={(e) => {
-              const newApp = [...approaches];
-              newApp[i].idea = e.target.value;
-              setApproaches(newApp);
+              const newApps = [...approaches];
+              newApps[idx].idea = e.target.value;
+              setApproaches(newApps);
             }}
+            onKeyDown={(e) =>
+              handleTabKey(
+                e,
+                approaches,
+                setApproaches,
+                idx,
+                "idea",
+                "approaches"
+              )
+            }
           />
+
           <TextField
             label="Steps"
             fullWidth
             multiline
-            rows={2}
+            minRows={2}
+            maxRows={10}
             value={app.steps}
             onChange={(e) => {
-              const newApp = [...approaches];
-              newApp[i].steps = e.target.value;
-              setApproaches(newApp);
+              const newApps = [...approaches];
+              newApps[idx].steps = e.target.value;
+              setApproaches(newApps);
             }}
+            onKeyDown={(e) =>
+              handleTabKey(
+                e,
+                approaches,
+                setApproaches,
+                idx,
+                "steps",
+                "approaches"
+              )
+            }
           />
-          <TextField
-            label="Pseudocode"
-            fullWidth
-            multiline
-            rows={3}
-            value={app.pseudocode}
-            onChange={(e) => {
-              const newApp = [...approaches];
-              newApp[i].pseudocode = e.target.value;
-              setApproaches(newApp);
-            }}
-          />
+
           <TextField
             label="Java Code"
             fullWidth
             multiline
-            rows={3}
+            minRows={2}
+            maxRows={10}
             value={app.javaCode}
             onChange={(e) => {
-              const newApp = [...approaches];
-              newApp[i].javaCode = e.target.value;
-              setApproaches(newApp);
+              const newApps = [...approaches];
+              newApps[idx].javaCode = e.target.value;
+              setApproaches(newApps);
             }}
+            onKeyDown={(e) =>
+              handleTabKey(
+                e,
+                approaches,
+                setApproaches,
+                idx,
+                "javaCode",
+                "approaches"
+              )
+            }
           />
- <TextField
-  label="Complexity (Time & Space)"
-  fullWidth
-  multiline
-  minRows={2}
-  value={app.complexity}
-  onChange={(e) => {
-    const newApp = [...approaches];
-    newApp[i].complexity = e.target.value;
-    setApproaches(newApp);
-  }}
-  onKeyDown={(e) => {
-    // Reuse handleTabKey to allow nested bullets
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const insertSpaces = "  ";
-      const newApp = [...approaches];
-      newApp[i].complexity += insertSpaces;
-      setApproaches(newApp);
-    }
-  }}
-/>
 
-
+          <TextField
+            label="Complexity (Time & Space)"
+            fullWidth
+            multiline
+            minRows={2}
+            maxRows={10}
+            value={app.complexity}
+            onChange={(e) => {
+              const newApps = [...approaches];
+              newApps[idx].complexity = e.target.value;
+              setApproaches(newApps);
+            }}
+            onKeyDown={(e) =>
+              handleTabKey(
+                e,
+                approaches,
+                setApproaches,
+                idx,
+                "complexity",
+                "approaches"
+              )
+            }
+          />
         </Stack>
       ))}
+
       <Button
         startIcon={<AddIcon />}
         onClick={() =>
           setApproaches([
             ...approaches,
-            { name: "", idea: "", steps: "", pseudocode: "", javaCode: "", timeComplexity: "", spaceComplexity: "" },
+            { name: "", idea: "", steps: "", javaCode: "", complexity: "" },
           ])
         }
       >
