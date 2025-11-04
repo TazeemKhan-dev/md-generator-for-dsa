@@ -622,14 +622,7 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(
-                e,
-                approaches,
-                setApproaches,
-                idx,
-                "idea",
-                "approaches"
-              )
+              handleTabKey(e, approaches, setApproaches, idx, "idea", "approaches")
             }
           />
 
@@ -646,14 +639,7 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(
-                e,
-                approaches,
-                setApproaches,
-                idx,
-                "steps",
-                "approaches"
-              )
+              handleTabKey(e, approaches, setApproaches, idx, "steps", "approaches")
             }
           />
 
@@ -670,14 +656,25 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(
-                e,
-                approaches,
-                setApproaches,
-                idx,
-                "javaCode",
-                "approaches"
-              )
+              handleTabKey(e, approaches, setApproaches, idx, "javaCode", "approaches")
+            }
+          />
+
+          {/* 💭 New Intuition Field */}
+          <TextField
+            label="💭 Intuition Behind the Approach"
+            fullWidth
+            multiline
+            minRows={2}
+            maxRows={10}
+            value={app.intuition || ""}
+            onChange={(e) => {
+              const newApps = [...approaches];
+              newApps[idx].intuition = e.target.value;
+              setApproaches(newApps);
+            }}
+            onKeyDown={(e) =>
+              handleTabKey(e, approaches, setApproaches, idx, "intuition", "approaches")
             }
           />
 
@@ -694,14 +691,7 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(
-                e,
-                approaches,
-                setApproaches,
-                idx,
-                "complexity",
-                "approaches"
-              )
+              handleTabKey(e, approaches, setApproaches, idx, "complexity", "approaches")
             }
           />
         </Stack>
@@ -712,7 +702,14 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
         onClick={() =>
           setApproaches([
             ...approaches,
-            { name: "", idea: "", steps: "", javaCode: "", complexity: "" },
+            {
+              name: "",
+              idea: "",
+              steps: "",
+              javaCode: "",
+              intuition: "", // 💭 added
+              complexity: "",
+            },
           ])
         }
       >
@@ -721,3 +718,4 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
     </Stack>
   );
 }
+

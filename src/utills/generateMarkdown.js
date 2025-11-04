@@ -67,13 +67,21 @@ export function generateMarkdown({
 
   // --- Sections Configuration ---
   const sectionsConfig = [
-    { key: "problemUnderstanding", label: "Problem Understanding", data: problemUnderstanding },
+    {
+      key: "problemUnderstanding",
+      label: "Problem Understanding",
+      data: problemUnderstanding,
+    },
     { key: "algorithm", label: "Algorithm", data: algorithm },
     { key: "constraints", label: "Constraints", data: constraints },
     { key: "edgeCases", label: "Edge Cases", data: edgeCases },
     { key: "examples", label: "Examples", data: examples },
     { key: "approaches", label: "Approaches", data: approaches },
-    { key: "justification", label: "Justification / Proof of Optimality", data: justification },
+    {
+      key: "justification",
+      label: "Justification / Proof of Optimality",
+      data: justification,
+    },
     { key: "variants", label: "Variants / Follow-Ups", data: variants },
     { key: "tips", label: "Tips & Observations", data: tips },
   ];
@@ -96,49 +104,52 @@ export function generateMarkdown({
       ].includes(key)
     ) {
       if (data?.description?.trim() || data?.subsections?.length) {
-        contentMd = renderSectionContent(data.description || "", data.subsections || []);
+        contentMd = renderSectionContent(
+          data.description || "",
+          data.subsections || []
+        );
       }
     }
 
     // --- Algorithm Section ---
-if (key === "algorithm" && Array.isArray(data)) {
-  data.forEach((algo, i) => {
-    if (algo.name?.trim() || algo.description?.trim() || (algo.subsections?.length)) {
-      contentMd += `### Algorithm ${i + 1}: ${algo.name || "Unnamed"}\n\n`;
-      if (algo.description?.trim())
-        contentMd += `${renderSectionContent(algo.description)}\n`;
-      if (algo.subsections?.length)
-        contentMd += renderSectionContent("", algo.subsections);
-    }
-  });
-}
-
-
-    // --- Examples Section ---
-// --- Examples Section ---
-else if (key === "examples" && Array.isArray(data)) {
-  const ex = data[0]; // only one main example object
-
-  if (ex.description?.trim() || ex.subsections?.length) {
-    // Wrap main description in code fence
-    if (ex.description?.trim()) {
-      contentMd += `\`\`\`text\n${ex.description.trim()}\n\`\`\`\n\n`;
-    }
-
-    // Render subsections (optional, future use)
-    if (ex.subsections?.length) {
-      ex.subsections.forEach((sub, idx) => {
-        if (sub.content?.trim()) {
-          contentMd += `### Subsection ${idx + 1}\n\n`;
-          contentMd += `\`\`\`text\n${sub.content.trim()}\n\`\`\`\n\n`;
+    if (key === "algorithm" && Array.isArray(data)) {
+      data.forEach((algo, i) => {
+        if (
+          algo.name?.trim() ||
+          algo.description?.trim() ||
+          algo.subsections?.length
+        ) {
+          contentMd += `### Algorithm ${i + 1}: ${algo.name || "Unnamed"}\n\n`;
+          if (algo.description?.trim())
+            contentMd += `${renderSectionContent(algo.description)}\n`;
+          if (algo.subsections?.length)
+            contentMd += renderSectionContent("", algo.subsections);
         }
       });
     }
-  }
-}
 
+    // --- Examples Section ---
+    // --- Examples Section ---
+    else if (key === "examples" && Array.isArray(data)) {
+      const ex = data[0]; // only one main example object
 
+      if (ex.description?.trim() || ex.subsections?.length) {
+        // Wrap main description in code fence
+        if (ex.description?.trim()) {
+          contentMd += `\`\`\`text\n${ex.description.trim()}\n\`\`\`\n\n`;
+        }
 
+        // Render subsections (optional, future use)
+        if (ex.subsections?.length) {
+          ex.subsections.forEach((sub, idx) => {
+            if (sub.content?.trim()) {
+              contentMd += `### Subsection ${idx + 1}\n\n`;
+              contentMd += `\`\`\`text\n${sub.content.trim()}\n\`\`\`\n\n`;
+            }
+          });
+        }
+      }
+    }
 
     // --- Approaches Section ---
     else if (key === "approaches" && Array.isArray(data)) {
@@ -149,17 +160,29 @@ else if (key === "examples" && Array.isArray(data)) {
           app.steps?.trim() ||
           app.pseudocode?.trim() ||
           app.javaCode?.trim() ||
+          app.intuition?.trim() || // 💭 added
           app.complexity?.trim()
         ) {
           contentMd += `### Approach ${i + 1}: ${app.name || ""}\n\n`;
-          if (app.idea?.trim()) contentMd += `**Idea:**\n${renderSectionContent(app.idea)}\n`;
-          if (app.steps?.trim()) contentMd += `**Steps:**\n${renderSectionContent(app.steps)}\n`;
+          if (app.idea?.trim())
+            contentMd += `**Idea:**\n${renderSectionContent(app.idea)}\n`;
+          if (app.steps?.trim())
+            contentMd += `**Steps:**\n${renderSectionContent(app.steps)}\n`;
           if (app.pseudocode?.trim())
             contentMd += `**Pseudocode:**\n\`\`\`text\n${app.pseudocode.trim()}\n\`\`\`\n\n`;
           if (app.javaCode?.trim())
             contentMd += `**Java Code:**\n\`\`\`java\n${app.javaCode.trim()}\n\`\`\`\n\n`;
+
+          // 💭 NEW: Intuition section
+          if (app.intuition?.trim())
+            contentMd += `**💭 Intuition Behind the Approach:**\n${renderSectionContent(
+              app.intuition
+            )}\n`;
+
           if (app.complexity?.trim())
-            contentMd += `**Complexity (Time & Space):**\n${renderSectionContent(app.complexity)}\n`;
+            contentMd += `**Complexity (Time & Space):**\n${renderSectionContent(
+              app.complexity
+            )}\n`;
         }
       });
     }
