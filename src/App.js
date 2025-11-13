@@ -23,7 +23,7 @@ export default function App() {
 
   const [showSections, setShowSections] = useState({
     problemUnderstanding: true,
-    algorithm: true,
+    algorithm: false,
     constraints: true,
     edgeCases: true,
     examples: true,
@@ -75,6 +75,52 @@ export default function App() {
     description: "",
     subsections: [],
   });
+ const clearAll = () => {
+   setTitle("");
+
+   setShowSections({
+     problemUnderstanding: true,
+     algorithm: false,
+     constraints: true,
+     edgeCases: true,
+     examples: true,
+     approaches: true,
+     justification: true,
+     variants: true,
+     tips: true,
+   });
+
+   setExpandedSection("");
+
+   setProblemUnderstanding({ description: "", subsections: [] });
+   setAlgorithms([
+     { problem: "", example: "", idea: "", steps: "", subsections: [] },
+   ]);
+
+   setConstraints({ description: "", subsections: [] });
+   setEdgeCases({ description: "", subsections: [] });
+
+   setExamples([{ description: "", subsections: [] }]);
+
+   setApproaches([
+     {
+       name: "",
+       idea: "",
+       steps: "",
+       javaCode: "",
+       intuition: "",
+       complexity: "",
+     },
+   ]);
+
+   setJustification({ description: "", subsections: [] });
+   setVariants({ description: "", subsections: [] });
+   setTips({ description: "", subsections: [] });
+
+   // ⭐ NEW: Auto-scroll to top
+   window.scrollTo({ top: 0, behavior: "smooth" });
+ };
+
 
   /* --- TAB & SHIFT+TAB handler --- */
   const handleTabKey = (e, state, setState, idx, field, type) => {
@@ -350,7 +396,11 @@ export default function App() {
         >
           Download Markdown
         </Button>
+        <Button variant="outlined" color="error" onClick={clearAll}>
+          Clear All
+        </Button>
       </Stack>
+  
     </Box>
   );
 }
