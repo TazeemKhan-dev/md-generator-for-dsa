@@ -1,3 +1,4 @@
+// App.js
 import React, { useState } from "react";
 import {
   Accordion,
@@ -9,19 +10,26 @@ import {
   Typography,
   IconButton,
   Stack,
-  Checkbox,
+  Switch,
+  Grid,
   Box,
+  Drawer,
+  Divider,
 } from "@mui/material";
+
+import SettingsIcon from "@mui/icons-material/Settings";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
 import { generateMarkdown } from "./utills/generateMarkdown";
+import CloseIcon from "@mui/icons-material/Close";
 
 export default function App() {
   const [title, setTitle] = useState("");
 
-  const [showSections, setShowSections] = useState({
+  const defaultShowSections = {
+    problemStatement: true,
     problemUnderstanding: true,
     algorithm: false,
     constraints: true,
@@ -31,125 +39,113 @@ export default function App() {
     justification: true,
     variants: true,
     tips: true,
-  });
+    pitfalls: true, // NEW
+  };
 
+  const [showSections, setShowSections] = useState(defaultShowSections);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState("");
 
-  const [problemUnderstanding, setProblemUnderstanding] = useState({
-    description: "",
-    subsections: [],
+  // For sections that need ordered blocks, use { blocks: [{type:'description'|'text'|'subsection', ...}] }
+  const emptyBlocks = [{ type: "description", content: "" }];
+
+  const [problemStatement, setProblemStatement] = useState({
+    blocks: [...emptyBlocks],
   });
 
-  const [algorithms, setAlgorithms] = useState([
-    { problem: "", example: "", idea: "", steps: "", subsections: [] },
-  ]);
+  const [problemUnderstanding, setProblemUnderstanding] = useState({
+    blocks: [...emptyBlocks],
+  });
 
   const [constraints, setConstraints] = useState({
-    description: "",
-    subsections: [],
+    blocks: [...emptyBlocks],
   });
 
   const [edgeCases, setEdgeCases] = useState({
-    description: "",
-    subsections: [],
+    blocks: [...emptyBlocks],
   });
 
-  const [examples, setExamples] = useState([
-    { description: "", subsections: [] },
-  ]);
-  const [approaches, setApproaches] = useState([
-    { name: "", idea: "", steps: "", javaCode: "", complexity: "" },
-  ]);
-
   const [justification, setJustification] = useState({
-    description: "",
-    subsections: [],
+    blocks: [...emptyBlocks],
   });
 
   const [variants, setVariants] = useState({
-    description: "",
-    subsections: [],
+    blocks: [...emptyBlocks],
   });
 
   const [tips, setTips] = useState({
-    description: "",
-    subsections: [],
+    blocks: [...emptyBlocks],
   });
- const clearAll = () => {
-   setTitle("");
 
-   setShowSections({
-     problemUnderstanding: true,
-     algorithm: false,
-     constraints: true,
-     edgeCases: true,
-     examples: true,
-     approaches: true,
-     justification: true,
-     variants: true,
-     tips: true,
-   });
+  const [pitfalls, setPitfalls] = useState({
+    blocks: [...emptyBlocks],
+  });
 
-   setExpandedSection("");
+  // Examples and approaches keep previous structure mostly, but examples will allow text blocks too
+  const [examples, setExamples] = useState([
+    { description: "", subsections: [], textBlocks: [] },
+  ]);
 
-   setProblemUnderstanding({ description: "", subsections: [] });
-   setAlgorithms([
-     { problem: "", example: "", idea: "", steps: "", subsections: [] },
-   ]);
+  const [algorithms, setAlgorithms] = useState([
+    { name: "", description: "", subsections: [] },
+  ]);
 
-   setConstraints({ description: "", subsections: [] });
-   setEdgeCases({ description: "", subsections: [] });
+  const [approaches, setApproaches] = useState([
+    {
+      name: "",
+      idea: "",
+      steps: "",
+      javaCode: "",
+      intuition: "",
+      complexity: "",
+    },
+  ]);
 
-   setExamples([{ description: "", subsections: [] }]);
+  // Clear All resets everything
+  const clearAll = () => {
+    setTitle("");
+    setShowSections(defaultShowSections);
+    setExpandedSection("");
+    setProblemStatement({ blocks: [...emptyBlocks] });
+    setProblemUnderstanding({ blocks: [...emptyBlocks] });
+    setConstraints({ blocks: [...emptyBlocks] });
+    setEdgeCases({ blocks: [...emptyBlocks] });
+    setJustification({ blocks: [...emptyBlocks] });
+    setVariants({ blocks: [...emptyBlocks] });
+    setTips({ blocks: [...emptyBlocks] });
+    setPitfalls({ blocks: [...emptyBlocks] });
 
-   setApproaches([
-     {
-       name: "",
-       idea: "",
-       steps: "",
-       javaCode: "",
-       intuition: "",
-       complexity: "",
-     },
-   ]);
+    setExamples([{ description: "", subsections: [], textBlocks: [] }]);
+    setAlgorithms([{ name: "", description: "", subsections: [] }]);
+    setApproaches([
+      {
+        name: "",
+        idea: "",
+        steps: "",
+        javaCode: "",
+        intuition: "",
+        complexity: "",
+      },
+    ]);
 
-   setJustification({ description: "", subsections: [] });
-   setVariants({ description: "", subsections: [] });
-   setTips({ description: "", subsections: [] });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-   // ⭐ NEW: Auto-scroll to top
-   window.scrollTo({ top: 0, behavior: "smooth" });
- };
-
-
-  /* --- TAB & SHIFT+TAB handler --- */
-  const handleTabKey = (e, state, setState, idx, field, type) => {
+  /* --- TAB & SHIFT+TAB handler (same as before) --- */
+  const handleTabKey = (e, value, onChange) => {
     const textarea = e.target;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const insertSpaces = "  "; // 2 spaces
+    const insertSpaces = "  ";
 
     if (e.key === "Tab") {
       e.preventDefault();
-
-      let value = "";
-      if (type === "section") {
-        value = field ? state.subsections[idx][field] : state.description;
-      } else if (type === "algorithm") {
-        value = field ? state.subsections[idx][field] : state.description;
-      } else if (type === "examples") {
-        value = field ? state.subsections[idx][field] : state.description;
-      } else if (type === "approaches") {
-        value = state[idx][field];
-      }
-
-      // multi-line selection
-      const lines = value.substring(start, end).split("\n");
-      const beforeSelection = value.substring(0, start);
-      const afterSelection = value.substring(end);
+      const val = value || "";
+      const lines = val.substring(start, end).split("\n");
+      const beforeSelection = val.substring(0, start);
+      const afterSelection = val.substring(end);
 
       if (e.shiftKey) {
-        // SHIFT+TAB → unindent
         const newLines = lines.map((line) =>
           line.startsWith(insertSpaces)
             ? line.substring(insertSpaces.length)
@@ -158,43 +154,15 @@ export default function App() {
             : line
         );
         const newValue = beforeSelection + newLines.join("\n") + afterSelection;
-        if (type === "section") {
-          if (field) {
-            const newSub = [...state.subsections];
-            newSub[idx][field] = newValue;
-            setState({ ...state, subsections: newSub });
-          } else {
-            setState({ ...state, description: newValue });
-          }
-        } else if (type === "approaches") {
-          const newApps = [...state];
-          newApps[idx][field] = newValue;
-          setState(newApps);
-        }
-        // reset cursor
+        onChange(newValue);
         setTimeout(() => {
           textarea.selectionStart = start;
           textarea.selectionEnd = start + newLines.join("\n").length;
         }, 0);
       } else {
-        // TAB → insert spaces
         const newLines = lines.map((line) => insertSpaces + line);
         const newValue = beforeSelection + newLines.join("\n") + afterSelection;
-
-        if (type === "section") {
-          if (field) {
-            const newSub = [...state.subsections];
-            newSub[idx][field] = newValue;
-            setState({ ...state, subsections: newSub });
-          } else {
-            setState({ ...state, description: newValue });
-          }
-        } else if (type === "approaches") {
-          const newApps = [...state];
-          newApps[idx][field] = newValue;
-          setState(newApps);
-        }
-
+        onChange(newValue);
         setTimeout(() => {
           textarea.selectionStart = start + insertSpaces.length;
           textarea.selectionEnd = end + insertSpaces.length * lines.length;
@@ -206,6 +174,7 @@ export default function App() {
   const downloadMarkdown = () => {
     const md = generateMarkdown({
       title,
+      problemStatement,
       problemUnderstanding,
       algorithm: algorithms,
       constraints,
@@ -215,6 +184,7 @@ export default function App() {
       justification,
       variants,
       tips,
+      pitfalls, // NEW
       showSections,
     });
 
@@ -239,11 +209,12 @@ export default function App() {
 
   const renderAccordion = (key, label, icon, children) => (
     <Accordion
+      key={key}
       expanded={expandedSection === key}
       onChange={() => setExpandedSection(expandedSection === key ? "" : key)}
     >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography>
+        <Typography sx={{ fontWeight: 600 }}>
           {icon} {label}
         </Typography>
       </AccordionSummary>
@@ -252,8 +223,67 @@ export default function App() {
   );
 
   return (
-    <Box sx={{ padding: 20, maxWidth: "1200px", margin: "0 auto" }}>
-      <Stack spacing={2} sx={{ padding: 4 }}>
+    <Box sx={{ px: 4, py: 6, maxWidth: "1100px", margin: "0 auto" }}>
+      {/* Top-left settings icon */}
+      {!drawerOpen && (
+        <IconButton
+          onClick={() => setDrawerOpen(true)}
+          sx={{ position: "fixed", top: 12, left: 12, zIndex: 2000 }}
+          aria-label="open settings"
+        >
+          <SettingsIcon />
+        </IconButton>
+      )}
+
+      {/* Drawer */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      >
+        <Box sx={{ width: 320, p: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 1,
+            }}
+          >
+            <Typography variant="h6">Sections</Typography>
+
+            {/* ❌ Close Button */}
+            <IconButton onClick={() => setDrawerOpen(false)} aria-label="close">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Divider sx={{ mb: 1 }} />
+
+          <Grid container spacing={1}>
+            {Object.keys(showSections).map((sec) => (
+              <Grid item xs={12} key={sec}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showSections[sec]}
+                      onChange={() =>
+                        setShowSections({
+                          ...showSections,
+                          [sec]: !showSections[sec],
+                        })
+                      }
+                    />
+                  }
+                  label={sec.replace(/([A-Z])/g, " $1").trim()}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      </Drawer>
+
+      {/* Main editor */}
+      <Stack spacing={3} sx={{ mt: 2 }}>
         <TextField
           fullWidth
           label="Question Title"
@@ -261,32 +291,25 @@ export default function App() {
           onChange={(e) => setTitle(e.target.value)}
         />
 
-        <Stack direction="row" spacing={2}>
-          {Object.keys(showSections).map((sec) => (
-            <FormControlLabel
-              key={sec}
-              control={
-                <Checkbox
-                  checked={showSections[sec]}
-                  onChange={() =>
-                    setShowSections({
-                      ...showSections,
-                      [sec]: !showSections[sec],
-                    })
-                  }
-                />
-              }
-              label={sec.replace(/([A-Z])/g, " $1").trim()}
+        {/* Render section accordions in desired order */}
+        {showSections.problemStatement &&
+          renderAccordion(
+            "problemStatement",
+            "Problem Statement",
+            "📝",
+            <SectionEditorBlock
+              state={problemStatement}
+              setState={setProblemStatement}
+              handleTabKey={handleTabKey}
             />
-          ))}
-        </Stack>
+          )}
 
         {showSections.problemUnderstanding &&
           renderAccordion(
             "problemUnderstanding",
-            "Understand the Problem",
+            "Problem Understanding",
             "💡",
-            <SectionEditor
+            <SectionEditorBlock
               state={problemUnderstanding}
               setState={setProblemUnderstanding}
               handleTabKey={handleTabKey}
@@ -310,7 +333,7 @@ export default function App() {
             "constraints",
             "Constraints",
             "📝",
-            <SectionEditor
+            <SectionEditorBlock
               state={constraints}
               setState={setConstraints}
               handleTabKey={handleTabKey}
@@ -322,7 +345,7 @@ export default function App() {
             "edgeCases",
             "Edge Cases",
             "⚠️",
-            <SectionEditor
+            <SectionEditorBlock
               state={edgeCases}
               setState={setEdgeCases}
               handleTabKey={handleTabKey}
@@ -358,7 +381,7 @@ export default function App() {
             "justification",
             "Justification / Proof",
             "✅",
-            <SectionEditor
+            <SectionEditorBlock
               state={justification}
               setState={setJustification}
               handleTabKey={handleTabKey}
@@ -370,7 +393,7 @@ export default function App() {
             "variants",
             "Variants / Follow-Ups",
             "⏭️",
-            <SectionEditor
+            <SectionEditorBlock
               state={variants}
               setState={setVariants}
               handleTabKey={handleTabKey}
@@ -382,101 +405,183 @@ export default function App() {
             "tips",
             "Tips & Observations",
             "💡",
-            <SectionEditor
+            <SectionEditorBlock
               state={tips}
               setState={setTips}
               handleTabKey={handleTabKey}
             />
           )}
 
-        <Button
-          startIcon={<DownloadIcon />}
-          variant="contained"
-          onClick={downloadMarkdown}
-        >
-          Download Markdown
-        </Button>
-        <Button variant="outlined" color="error" onClick={clearAll}>
-          Clear All
-        </Button>
+        {/* NEW: Pitfalls Section */}
+        {showSections.pitfalls &&
+          renderAccordion(
+            "pitfalls",
+            "Pitfalls",
+            "⚠️",
+            <SectionEditorBlock
+              state={pitfalls}
+              setState={setPitfalls}
+              handleTabKey={handleTabKey}
+            />
+          )}
+
+        <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
+          <Button
+            startIcon={<DownloadIcon />}
+            variant="contained"
+            onClick={downloadMarkdown}
+            sx={{ flex: 1 }}
+          >
+            Download Markdown
+          </Button>
+
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={(e) => {
+              if (e.detail === 2) clearAll();
+            }}
+            sx={{ flex: 1, borderWidth: "2px", borderColor: "error.main" }}
+          >
+            Clear All (Double Click)
+          </Button>
+        </Stack>
       </Stack>
-  
     </Box>
   );
 }
 
-/* --- Section Editor --- */
-function SectionEditor({ state, setState, handleTabKey }) {
+/* --- SectionEditorBlock: supports ordered blocks (description, text, subsection) --- */
+function SectionEditorBlock({ state, setState, handleTabKey }) {
+  // state = { blocks: [{type:'description'|'text'|'subsection', content, heading?}] }
+  const blocks = state.blocks || [];
+
+  const updateBlock = (idx, newBlock) => {
+    const newBlocks = [...blocks];
+    newBlocks[idx] = newBlock;
+    setState({ ...state, blocks: newBlocks });
+  };
+
+  const addTextBlock = () => {
+    setState({ ...state, blocks: [...blocks, { type: "text", content: "" }] });
+  };
+
+  const addSubsection = () => {
+    setState({
+      ...state,
+      blocks: [...blocks, { type: "subsection", heading: "", content: "" }],
+    });
+  };
+
+  const deleteBlock = (idx) => {
+    setState({ ...state, blocks: blocks.filter((_, i) => i !== idx) });
+  };
+
   return (
-    <Stack spacing={1}>
-      <TextField
-        fullWidth
-        multiline
-        minRows={2}
-        label="Description"
-        value={state.description}
-        onChange={(e) => setState({ ...state, description: e.target.value })}
-        onKeyDown={(e) =>
-          handleTabKey(e, state, setState, null, null, "section")
-        }
-      />
-      {state.subsections.map((sub, idx) => (
-        <Stack
+    <Stack spacing={2}>
+      {blocks.map((block, idx) => (
+        <Box
           key={idx}
-          spacing={1}
-          sx={{ borderLeft: "2px solid #ddd", pl: 1 }}
+          sx={{
+            borderLeft: block.type === "subsection" ? "3px solid #eee" : "none",
+            pl: 1,
+          }}
         >
-          <TextField
-            label="Subheading"
-            value={sub.heading}
-            onChange={(e) => {
-              const newSub = [...state.subsections];
-              newSub[idx].heading = e.target.value;
-              setState({ ...state, subsections: newSub });
-            }}
-          />
-          <TextField
-            label="Content (nested bullets supported)"
-            multiline
-            minRows={2}
-            value={sub.content}
-            onChange={(e) => {
-              const newSub = [...state.subsections];
-              newSub[idx].content = e.target.value;
-              setState({ ...state, subsections: newSub });
-            }}
-            onKeyDown={(e) =>
-              handleTabKey(e, state, setState, idx, "content", "section")
-            }
-          />
-          <IconButton
-            onClick={() =>
-              setState({
-                ...state,
-                subsections: state.subsections.filter((_, i) => i !== idx),
-              })
-            }
-          >
-            <DeleteIcon />
-          </IconButton>
-        </Stack>
+          {block.type === "description" && (
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              minRows={2}
+              value={block.content}
+              onChange={(e) =>
+                updateBlock(idx, { ...block, content: e.target.value })
+              }
+              onKeyDown={(e) =>
+                handleTabKey(e, block.content, (v) =>
+                  updateBlock(idx, { ...block, content: v })
+                )
+              }
+            />
+          )}
+
+          {block.type === "text" && (
+            <Box>
+              <Typography sx={{ mb: 1, fontWeight: 600 }}>
+                Text Block
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                value={block.content}
+                placeholder="Exact text preserved inside fenced block"
+                onChange={(e) =>
+                  updateBlock(idx, { ...block, content: e.target.value })
+                }
+                onKeyDown={(e) =>
+                  handleTabKey(e, block.content, (v) =>
+                    updateBlock(idx, { ...block, content: v })
+                  )
+                }
+              />
+            </Box>
+          )}
+
+          {block.type === "subsection" && (
+            <Stack
+              spacing={1}
+              sx={{ borderLeft: "2px solid #ddd", pl: 2, pt: 1, pb: 1 }}
+            >
+              <TextField
+                label="Subheading"
+                value={block.heading}
+                onChange={(e) =>
+                  updateBlock(idx, { ...block, heading: e.target.value })
+                }
+              />
+              <TextField
+                label="Content (nested bullets supported)"
+                multiline
+                minRows={2}
+                value={block.content}
+                onChange={(e) =>
+                  updateBlock(idx, { ...block, content: e.target.value })
+                }
+                onKeyDown={(e) =>
+                  handleTabKey(e, block.content, (v) =>
+                    updateBlock(idx, { ...block, content: v })
+                  )
+                }
+              />
+            </Stack>
+          )}
+
+          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+            <IconButton
+              size="small"
+              onClick={() => deleteBlock(idx)}
+              aria-label="delete block"
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        </Box>
       ))}
-      <Button
-        startIcon={<AddIcon />}
-        onClick={() =>
-          setState({
-            ...state,
-            subsections: [...state.subsections, { heading: "", content: "" }],
-          })
-        }
-      >
-        Add Subsection
-      </Button>
+
+      <Stack direction="row" spacing={2}>
+        <Button startIcon={<AddIcon />} onClick={addTextBlock}>
+          Add Text
+        </Button>
+        <Button startIcon={<AddIcon />} onClick={addSubsection}>
+          Add Subsection
+        </Button>
+      </Stack>
     </Stack>
   );
 }
 
-/* --- Algorithm Editor --- */
+/* --- Algorithm Editor (keeps earlier behavior) --- */
 function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
   const algo = algorithms[0] || { name: "", description: "", subsections: [] };
 
@@ -513,7 +618,6 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
         value={algo.name || ""}
         onChange={(e) => updateField("name", e.target.value)}
       />
-
       <TextField
         label="Algorithm Description"
         fullWidth
@@ -522,7 +626,9 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
         value={algo.description || ""}
         onChange={(e) => updateField("description", e.target.value)}
         onKeyDown={(e) =>
-          handleTabKey(e, algo, setAlgorithms, null, null, "algorithm")
+          handleTabKey(e, algo.description, (v) =>
+            updateField("description", v)
+          )
         }
       />
 
@@ -544,10 +650,11 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
             value={sub.content}
             onChange={(e) => updateSubsection(idx, "content", e.target.value)}
             onKeyDown={(e) =>
-              handleTabKey(e, algo, setAlgorithms, idx, "content", "algorithm")
+              handleTabKey(e, sub.content, (v) =>
+                updateSubsection(idx, "content", v)
+              )
             }
           />
-
           <IconButton onClick={() => deleteSubsection(idx)}>
             <DeleteIcon />
           </IconButton>
@@ -561,12 +668,36 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
   );
 }
 
-/* --- Examples Editor --- */
+/* --- Examples Editor (keeps earlier behavior but supports textBlocks array) --- */
 function ExamplesEditor({ examples, setExamples, handleTabKey }) {
-  const example = examples[0] || { description: "", subsections: [] };
+  const example = examples[0] || {
+    description: "",
+    subsections: [],
+    textBlocks: [],
+  };
 
   const updateDescription = (value) =>
     setExamples([{ ...example, description: value }]);
+
+  const addTextBlock = () =>
+    setExamples([
+      { ...example, textBlocks: [...(example.textBlocks || []), ""] },
+    ]);
+
+  const updateTextBlock = (idx, v) => {
+    const newT = [...(example.textBlocks || [])];
+    newT[idx] = v;
+    setExamples([{ ...example, textBlocks: newT }]);
+  };
+
+  const deleteTextBlock = (idx) => {
+    setExamples([
+      {
+        ...example,
+        textBlocks: example.textBlocks.filter((_, i) => i !== idx),
+      },
+    ]);
+  };
 
   const addSubsection = () =>
     setExamples([
@@ -593,16 +724,35 @@ function ExamplesEditor({ examples, setExamples, handleTabKey }) {
   return (
     <Stack spacing={2}>
       <TextField
-        label="Examples (paste all examples here)"
+        label="Examples (main description)"
         fullWidth
         multiline
-        minRows={5}
+        minRows={4}
         value={example.description}
         onChange={(e) => updateDescription(e.target.value)}
         onKeyDown={(e) =>
-          handleTabKey(e, example, setExamples, null, null, "examples")
+          handleTabKey(e, example.description, (v) => updateDescription(v))
         }
       />
+
+      {(example.textBlocks || []).map((tb, idx) => (
+        <Box key={idx}>
+          <Typography sx={{ fontWeight: 600 }}>Text Block (fenced)</Typography>
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            value={tb}
+            onChange={(e) => updateTextBlock(idx, e.target.value)}
+            onKeyDown={(e) =>
+              handleTabKey(e, tb, (v) => updateTextBlock(idx, v))
+            }
+          />
+          <IconButton onClick={() => deleteTextBlock(idx)}>
+            <DeleteIcon />
+          </IconButton>
+        </Box>
+      ))}
 
       {(example.subsections || []).map((sub, idx) => (
         <Stack
@@ -617,7 +767,7 @@ function ExamplesEditor({ examples, setExamples, handleTabKey }) {
             value={sub.content}
             onChange={(e) => updateSub(idx, e.target.value)}
             onKeyDown={(e) =>
-              handleTabKey(e, example, setExamples, idx, "content", "examples")
+              handleTabKey(e, sub.content, (v) => updateSub(idx, v))
             }
           />
           <IconButton onClick={() => deleteSubsection(idx)}>
@@ -626,9 +776,14 @@ function ExamplesEditor({ examples, setExamples, handleTabKey }) {
         </Stack>
       ))}
 
-      <Button startIcon={<AddIcon />} onClick={addSubsection}>
-        Add Subsection
-      </Button>
+      <Stack direction="row" spacing={2}>
+        <Button startIcon={<AddIcon />} onClick={addTextBlock}>
+          Add Text
+        </Button>
+        <Button startIcon={<AddIcon />} onClick={addSubsection}>
+          Add Subsection
+        </Button>
+      </Stack>
     </Stack>
   );
 }
@@ -672,7 +827,11 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(e, approaches, setApproaches, idx, "idea", "approaches")
+              handleTabKey(e, app.idea, (v) => {
+                const newApps = [...approaches];
+                newApps[idx].idea = v;
+                setApproaches(newApps);
+              })
             }
           />
 
@@ -689,7 +848,11 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(e, approaches, setApproaches, idx, "steps", "approaches")
+              handleTabKey(e, app.steps, (v) => {
+                const newApps = [...approaches];
+                newApps[idx].steps = v;
+                setApproaches(newApps);
+              })
             }
           />
 
@@ -706,11 +869,14 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(e, approaches, setApproaches, idx, "javaCode", "approaches")
+              handleTabKey(e, app.javaCode, (v) => {
+                const newApps = [...approaches];
+                newApps[idx].javaCode = v;
+                setApproaches(newApps);
+              })
             }
           />
 
-          {/* 💭 New Intuition Field */}
           <TextField
             label="💭 Intuition Behind the Approach"
             fullWidth
@@ -724,7 +890,11 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(e, approaches, setApproaches, idx, "intuition", "approaches")
+              handleTabKey(e, app.intuition || "", (v) => {
+                const newApps = [...approaches];
+                newApps[idx].intuition = v;
+                setApproaches(newApps);
+              })
             }
           />
 
@@ -741,7 +911,11 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               setApproaches(newApps);
             }}
             onKeyDown={(e) =>
-              handleTabKey(e, approaches, setApproaches, idx, "complexity", "approaches")
+              handleTabKey(e, app.complexity, (v) => {
+                const newApps = [...approaches];
+                newApps[idx].complexity = v;
+                setApproaches(newApps);
+              })
             }
           />
         </Stack>
@@ -757,7 +931,7 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
               idea: "",
               steps: "",
               javaCode: "",
-              intuition: "", // 💭 added
+              intuition: "",
               complexity: "",
             },
           ])
@@ -768,4 +942,3 @@ function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
     </Stack>
   );
 }
-
