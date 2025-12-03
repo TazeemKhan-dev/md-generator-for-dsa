@@ -24,13 +24,20 @@ export function generateMarkdown({
     if (!text) return "";
     const lines = text.split("\n");
     let out = "";
-    for (let raw of lines) {
-      const line = raw.replace(/\t/g, "    ");
-      if (!line.trim()) continue;
 
-      // Always nest bullet under parent using 4 spaces
-      out += `   - ${line.trim()}\n`;
+    for (let raw of lines) {
+      if (!raw.trim()) continue;
+
+      const line = raw.replace(/\t/g, "    "); // tabs → 4 spaces
+      const indent = line.match(/^\s*/)[0]; // leading spaces
+      const content = line.trim();
+
+      // old behavior: top-level = "-", nested = "*"
+      const bullet = indent.length === 0 ? "-" : "*";
+
+      out += `${indent}${bullet} ${content}\n`;
     }
+
     return out;
   };
 

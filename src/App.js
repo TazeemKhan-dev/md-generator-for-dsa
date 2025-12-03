@@ -1,5 +1,7 @@
 // App.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Editor from "@monaco-editor/react";
+
 import {
   Accordion,
   AccordionSummary,
@@ -16,6 +18,8 @@ import {
   Drawer,
   Divider,
 } from "@mui/material";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
 
 import SettingsIcon from "@mui/icons-material/Settings";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -25,7 +29,52 @@ import DownloadIcon from "@mui/icons-material/Download";
 import { generateMarkdown } from "./utills/generateMarkdown";
 import CloseIcon from "@mui/icons-material/Close";
 
+const scrollSx = {
+  "& .MuiOutlinedInput-root": {
+    padding: "8px !important", // restore safe padding
+  },
+  "& textarea": {
+    maxHeight: "250px !important",
+    overflowY: "auto !important",
+    padding: "5px !important", // padding inside textarea
+    boxSizing: "border-box",
+
+    /* Hide scrollbar */
+    "&::-webkit-scrollbar": { display: "none" },
+    scrollbarWidth: "none",
+  },
+};
+
+const approachSx = {
+  "& .MuiOutlinedInput-root": {
+    padding: "8px !important", // fix overlapping issue
+  },
+  "& textarea": {
+    maxHeight: "180px !important",
+    minHeight: "40px !important",
+    overflowY: "auto !important",
+    padding: "5 !important",
+    boxSizing: "border-box",
+
+    /* Hide scrollbar */
+    "&::-webkit-scrollbar": { display: "none" },
+    scrollbarWidth: "none",
+  },
+};
+
 export default function App() {
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem("theme") === "dark"
+  );
+  const theme = createTheme({
+    palette: {
+      mode: darkMode ? "dark" : "light",
+    },
+  });
+  useEffect(() => {
+    localStorage.setItem("theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
+
   const [title, setTitle] = useState("");
 
   const defaultShowSections = {
@@ -127,6 +176,7 @@ export default function App() {
         complexity: "",
       },
     ]);
+    localStorage.removeItem("dsa_editor_data");
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -211,243 +261,356 @@ export default function App() {
     <Accordion
       key={key}
       expanded={expandedSection === key}
-      onChange={() => setExpandedSection(expandedSection === key ? "" : key)}
+      TransitionProps={{ timeout: 0 }} // disable collapse animation
+      onChange={(_, isExpanded) => {
+        setExpandedSection(isExpanded ? key : "");
+
+        if (isExpanded) {
+          setTimeout(() => {
+            const el = document.getElementById(`header-${key}`);
+            if (el) {
+              const y = el.getBoundingClientRect().top + window.scrollY - 80;
+              window.scrollTo({ top: y, behavior: "smooth" });
+            }
+          }, 50); // tiny delay is enough now
+        }
+      }}
     >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <AccordionSummary
+        id={`header-${key}`} // <--- NEW ID FOR SCROLL TARGET
+        expandIcon={<ExpandMoreIcon />}
+      >
         <Typography sx={{ fontWeight: 600 }}>
           {icon} {label}
         </Typography>
       </AccordionSummary>
+
       <AccordionDetails>{children}</AccordionDetails>
     </Accordion>
   );
+  useEffect(() => {
+    const saved = localStorage.getItem("dsa_editor_data");
+    if (saved) {
+      const data = JSON.parse(saved);
+
+      setTitle(data.title || "");
+      setShowSections(data.showSections || defaultShowSections);
+      setExpandedSection(data.expandedSection || "");
+
+      setProblemStatement(
+        data.problemStatement || { blocks: [...emptyBlocks] }
+      );
+      setProblemUnderstanding(
+        data.problemUnderstanding || { blocks: [...emptyBlocks] }
+      );
+      setConstraints(data.constraints || { blocks: [...emptyBlocks] });
+      setEdgeCases(data.edgeCases || { blocks: [...emptyBlocks] });
+      setJustification(data.justification || { blocks: [...emptyBlocks] });
+      setVariants(data.variants || { blocks: [...emptyBlocks] });
+      setTips(data.tips || { blocks: [...emptyBlocks] });
+      setPitfalls(data.pitfalls || { blocks: [...emptyBlocks] });
+
+      setExamples(
+        data.examples || [{ description: "", subsections: [], textBlocks: [] }]
+      );
+      setAlgorithms(
+        data.algorithms || [{ name: "", description: "", subsections: [] }]
+      );
+      setApproaches(
+        data.approaches || [
+          {
+            name: "",
+            idea: "",
+            steps: "",
+            javaCode: "",
+            intuition: "",
+            complexity: "",
+          },
+        ]
+      );
+    }
+  }, []);
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const data = {
+        title,
+        showSections,
+        expandedSection,
+        problemStatement,
+        problemUnderstanding,
+        constraints,
+        edgeCases,
+        justification,
+        variants,
+        tips,
+        pitfalls,
+        examples,
+        algorithms,
+        approaches,
+      };
+
+      localStorage.setItem("dsa_editor_data", JSON.stringify(data));
+    }, 400); // debounce 400ms
+
+    return () => clearTimeout(timeout);
+  }, [
+    title,
+    showSections,
+    expandedSection,
+    problemStatement,
+    problemUnderstanding,
+    constraints,
+    edgeCases,
+    justification,
+    variants,
+    tips,
+    pitfalls,
+    examples,
+    algorithms,
+    approaches,
+  ]);
 
   return (
-    <Box sx={{ px: 4, py: 6, maxWidth: "1100px", margin: "0 auto" }}>
-      {/* Top-left settings icon */}
-      {!drawerOpen && (
-        <IconButton
-          onClick={() => setDrawerOpen(true)}
-          sx={{ position: "fixed", top: 12, left: 12, zIndex: 2000 }}
-          aria-label="open settings"
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ px: 4, py: 6, maxWidth: "1250px", margin: "0 auto" }}>
+        {/* Top-left settings icon */}
+        {!drawerOpen && (
+          <IconButton
+            onClick={() => setDrawerOpen(true)}
+            sx={{ position: "fixed", top: 12, left: 12, zIndex: 2000 }}
+            aria-label="open settings"
+          >
+            <SettingsIcon />
+          </IconButton>
+        )}
+
+        {/* Drawer */}
+        <Drawer
+          anchor="right"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
         >
-          <SettingsIcon />
-        </IconButton>
-      )}
+          <Box sx={{ width: 320, p: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 1,
+              }}
+            >
+              <Typography variant="h6">Sections</Typography>
 
-      {/* Drawer */}
-      <Drawer
-        anchor="right"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-      >
-        <Box sx={{ width: 320, p: 2 }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              mb: 1,
-            }}
-          >
-            <Typography variant="h6">Sections</Typography>
+              {/* ❌ Close Button */}
+              <IconButton
+                onClick={() => setDrawerOpen(false)}
+                aria-label="close"
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            <Divider sx={{ mb: 1 }} />
 
-            {/* ❌ Close Button */}
-            <IconButton onClick={() => setDrawerOpen(false)} aria-label="close">
-              <CloseIcon />
-            </IconButton>
+            <Grid container spacing={1}>
+              {Object.keys(showSections).map((sec) => (
+                <Grid item xs={12} key={sec}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={showSections[sec]}
+                        onChange={() =>
+                          setShowSections({
+                            ...showSections,
+                            [sec]: !showSections[sec],
+                          })
+                        }
+                      />
+                    }
+                    label={sec.replace(/([A-Z])/g, " $1").trim()}
+                  />
+                </Grid>
+              ))}
+            </Grid>
           </Box>
-          <Divider sx={{ mb: 1 }} />
-
-          <Grid container spacing={1}>
-            {Object.keys(showSections).map((sec) => (
-              <Grid item xs={12} key={sec}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={showSections[sec]}
-                      onChange={() =>
-                        setShowSections({
-                          ...showSections,
-                          [sec]: !showSections[sec],
-                        })
-                      }
-                    />
-                  }
-                  label={sec.replace(/([A-Z])/g, " $1").trim()}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      </Drawer>
-
-      {/* Main editor */}
-      <Stack spacing={3} sx={{ mt: 2 }}>
-        <TextField
-          fullWidth
-          label="Question Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-
-        {/* Render section accordions in desired order */}
-        {showSections.problemStatement &&
-          renderAccordion(
-            "problemStatement",
-            "Problem Statement",
-            "📝",
-            <SectionEditorBlock
-              state={problemStatement}
-              setState={setProblemStatement}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.problemUnderstanding &&
-          renderAccordion(
-            "problemUnderstanding",
-            "Problem Understanding",
-            "💡",
-            <SectionEditorBlock
-              state={problemUnderstanding}
-              setState={setProblemUnderstanding}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.algorithm &&
-          renderAccordion(
-            "algorithm",
-            "Algorithm",
-            "⚙️",
-            <AlgorithmEditor
-              algorithms={algorithms}
-              setAlgorithms={setAlgorithms}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.constraints &&
-          renderAccordion(
-            "constraints",
-            "Constraints",
-            "📝",
-            <SectionEditorBlock
-              state={constraints}
-              setState={setConstraints}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.edgeCases &&
-          renderAccordion(
-            "edgeCases",
-            "Edge Cases",
-            "⚠️",
-            <SectionEditorBlock
-              state={edgeCases}
-              setState={setEdgeCases}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.examples &&
-          renderAccordion(
-            "examples",
-            "Examples",
-            "🧪",
-            <ExamplesEditor
-              examples={examples}
-              setExamples={setExamples}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.approaches &&
-          renderAccordion(
-            "approaches",
-            "Approaches",
-            "🧠",
-            <ApproachesEditor
-              approaches={approaches}
-              setApproaches={setApproaches}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.justification &&
-          renderAccordion(
-            "justification",
-            "Justification / Proof",
-            "✅",
-            <SectionEditorBlock
-              state={justification}
-              setState={setJustification}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.variants &&
-          renderAccordion(
-            "variants",
-            "Variants / Follow-Ups",
-            "⏭️",
-            <SectionEditorBlock
-              state={variants}
-              setState={setVariants}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {showSections.tips &&
-          renderAccordion(
-            "tips",
-            "Tips & Observations",
-            "💡",
-            <SectionEditorBlock
-              state={tips}
-              setState={setTips}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        {/* NEW: Pitfalls Section */}
-        {showSections.pitfalls &&
-          renderAccordion(
-            "pitfalls",
-            "Pitfalls",
-            "⚠️",
-            <SectionEditorBlock
-              state={pitfalls}
-              setState={setPitfalls}
-              handleTabKey={handleTabKey}
-            />
-          )}
-
-        <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
-          <Button
-            startIcon={<DownloadIcon />}
-            variant="contained"
-            onClick={downloadMarkdown}
-            sx={{ flex: 1 }}
+        </Drawer>
+        {!drawerOpen && (
+          <IconButton
+            onClick={() => setDarkMode(!darkMode)}
+            sx={{ position: "fixed", top: 12, right: 12, zIndex: 2000 }}
           >
-            Download Markdown
-          </Button>
+            {darkMode ? "🌙" : "☀️"}
+          </IconButton>
+        )}
 
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={(e) => {
-              if (e.detail === 2) clearAll();
-            }}
-            sx={{ flex: 1, borderWidth: "2px", borderColor: "error.main" }}
-          >
-            Clear All (Double Click)
-          </Button>
+        {/* Main editor */}
+        <Stack spacing={3} sx={{ mt: 2 }}>
+          <TextField
+            fullWidth
+            label="Question Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+
+          {/* Render section accordions in desired order */}
+          {showSections.problemStatement &&
+            renderAccordion(
+              "problemStatement",
+              "Problem Statement",
+              "📝",
+              <SectionEditorBlock
+                state={problemStatement}
+                setState={setProblemStatement}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {showSections.problemUnderstanding &&
+            renderAccordion(
+              "problemUnderstanding",
+              "Problem Understanding",
+              "💡",
+              <SectionEditorBlock
+                state={problemUnderstanding}
+                setState={setProblemUnderstanding}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {showSections.algorithm &&
+            renderAccordion(
+              "algorithm",
+              "Algorithm",
+              "⚙️",
+              <AlgorithmEditor
+                algorithms={algorithms}
+                setAlgorithms={setAlgorithms}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {showSections.constraints &&
+            renderAccordion(
+              "constraints",
+              "Constraints",
+              "📝",
+              <SectionEditorBlock
+                state={constraints}
+                setState={setConstraints}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {showSections.edgeCases &&
+            renderAccordion(
+              "edgeCases",
+              "Edge Cases",
+              "⚠️",
+              <SectionEditorBlock
+                state={edgeCases}
+                setState={setEdgeCases}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {showSections.examples &&
+            renderAccordion(
+              "examples",
+              "Examples",
+              "🧪",
+              <ExamplesEditor
+                examples={examples}
+                setExamples={setExamples}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {showSections.approaches &&
+            renderAccordion(
+              "approaches",
+              "Approaches",
+              "🧠",
+              <ApproachesEditor
+                approaches={approaches}
+                setApproaches={setApproaches}
+                handleTabKey={handleTabKey}
+                darkMode={darkMode}
+              />
+            )}
+
+          {showSections.justification &&
+            renderAccordion(
+              "justification",
+              "Justification / Proof",
+              "✅",
+              <SectionEditorBlock
+                state={justification}
+                setState={setJustification}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {showSections.variants &&
+            renderAccordion(
+              "variants",
+              "Variants / Follow-Ups",
+              "⏭️",
+              <SectionEditorBlock
+                state={variants}
+                setState={setVariants}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {showSections.tips &&
+            renderAccordion(
+              "tips",
+              "Tips & Observations",
+              "💡",
+              <SectionEditorBlock
+                state={tips}
+                setState={setTips}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          {/* NEW: Pitfalls Section */}
+          {showSections.pitfalls &&
+            renderAccordion(
+              "pitfalls",
+              "Pitfalls",
+              "⚠️",
+              <SectionEditorBlock
+                state={pitfalls}
+                setState={setPitfalls}
+                handleTabKey={handleTabKey}
+              />
+            )}
+
+          <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
+            <Button
+              startIcon={<DownloadIcon />}
+              variant="contained"
+              onClick={downloadMarkdown}
+              sx={{ flex: 1 }}
+            >
+              Download Markdown
+            </Button>
+
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={(e) => {
+                if (e.detail === 2) clearAll();
+              }}
+              sx={{ flex: 1, borderWidth: "2px", borderColor: "error.main" }}
+            >
+              Clear All (Double Click)
+            </Button>
+          </Stack>
         </Stack>
-      </Stack>
-    </Box>
+      </Box>
+    </ThemeProvider>
   );
 }
 
@@ -493,6 +656,7 @@ function SectionEditorBlock({ state, setState, handleTabKey }) {
               label="Description"
               multiline
               minRows={2}
+              sx={scrollSx}
               value={block.content}
               onChange={(e) =>
                 updateBlock(idx, { ...block, content: e.target.value })
@@ -514,6 +678,7 @@ function SectionEditorBlock({ state, setState, handleTabKey }) {
                 fullWidth
                 multiline
                 minRows={3}
+                sx={scrollSx}
                 value={block.content}
                 placeholder="Exact text preserved inside fenced block"
                 onChange={(e) =>
@@ -544,6 +709,7 @@ function SectionEditorBlock({ state, setState, handleTabKey }) {
                 label="Content (nested bullets supported)"
                 multiline
                 minRows={2}
+                sx={scrollSx}
                 value={block.content}
                 onChange={(e) =>
                   updateBlock(idx, { ...block, content: e.target.value })
@@ -623,6 +789,7 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
         fullWidth
         multiline
         minRows={3}
+        sx={scrollSx}
         value={algo.description || ""}
         onChange={(e) => updateField("description", e.target.value)}
         onKeyDown={(e) =>
@@ -647,6 +814,7 @@ function AlgorithmEditor({ algorithms, setAlgorithms, handleTabKey }) {
             label="Content (supports nested bullets)"
             multiline
             minRows={2}
+            sx={scrollSx}
             value={sub.content}
             onChange={(e) => updateSubsection(idx, "content", e.target.value)}
             onKeyDown={(e) =>
@@ -728,6 +896,7 @@ function ExamplesEditor({ examples, setExamples, handleTabKey }) {
         fullWidth
         multiline
         minRows={4}
+        sx={scrollSx}
         value={example.description}
         onChange={(e) => updateDescription(e.target.value)}
         onKeyDown={(e) =>
@@ -742,6 +911,7 @@ function ExamplesEditor({ examples, setExamples, handleTabKey }) {
             fullWidth
             multiline
             minRows={3}
+            sx={scrollSx}
             value={tb}
             onChange={(e) => updateTextBlock(idx, e.target.value)}
             onKeyDown={(e) =>
@@ -764,6 +934,7 @@ function ExamplesEditor({ examples, setExamples, handleTabKey }) {
             label={`Subsection ${idx + 1}`}
             multiline
             minRows={3}
+            sx={scrollSx}
             value={sub.content}
             onChange={(e) => updateSub(idx, e.target.value)}
             onKeyDown={(e) =>
@@ -789,156 +960,190 @@ function ExamplesEditor({ examples, setExamples, handleTabKey }) {
 }
 
 /* --- Approaches Editor --- */
-function ApproachesEditor({ approaches, setApproaches, handleTabKey }) {
+function ApproachesEditor({
+  approaches,
+  setApproaches,
+  handleTabKey,
+  darkMode,
+}) {
   return (
-    <Stack spacing={2}>
-      {approaches.map((app, idx) => (
-        <Stack key={idx} spacing={1} border={1} borderRadius={2} padding={1}>
-          <Stack direction="row" spacing={1} alignItems="center">
+    <Box
+      sx={{
+        maxHeight: "80vh", // FULL HEIGHT of approaches container
+        overflowY: "auto", // scroll INSIDE this box
+        p: 2,
+        border: "1px solid #444",
+        borderRadius: "8px",
+
+        /* Hide scrollbar but still scrollable */
+        "&::-webkit-scrollbar": { width: "6px" },
+        "&::-webkit-scrollbar-thumb": {
+          backgroundColor: "#888",
+          borderRadius: "10px",
+        },
+      }}
+    >
+      <Stack spacing={2}>
+        {approaches.map((app, idx) => (
+          <Stack key={idx} spacing={1} border={1} borderRadius={2} padding={1}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <TextField
+                label="Approach Name"
+                fullWidth
+                value={app.name}
+                onChange={(e) => {
+                  const newApps = [...approaches];
+                  newApps[idx].name = e.target.value;
+                  setApproaches(newApps);
+                }}
+              />
+              <IconButton
+                onClick={() =>
+                  setApproaches(approaches.filter((_, i) => i !== idx))
+                }
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Stack>
+
+            {/* IDEA */}
             <TextField
-              label="Approach Name"
+              label="Idea"
               fullWidth
-              value={app.name}
+              multiline
+              minRows={2}
+              maxRows={10}
+              sx={approachSx}
+              value={app.idea}
               onChange={(e) => {
                 const newApps = [...approaches];
-                newApps[idx].name = e.target.value;
+                newApps[idx].idea = e.target.value;
                 setApproaches(newApps);
               }}
-            />
-            <IconButton
-              onClick={() =>
-                setApproaches(approaches.filter((_, i) => i !== idx))
+              onKeyDown={(e) =>
+                handleTabKey(e, app.idea, (v) => {
+                  const newApps = [...approaches];
+                  newApps[idx].idea = v;
+                  setApproaches(newApps);
+                })
               }
-            >
-              <DeleteIcon />
-            </IconButton>
+            />
+
+            {/* STEPS */}
+            <TextField
+              label="Steps"
+              fullWidth
+              multiline
+              minRows={2}
+              maxRows={10}
+              sx={approachSx}
+              value={app.steps}
+              onChange={(e) => {
+                const newApps = [...approaches];
+                newApps[idx].steps = e.target.value;
+                setApproaches(newApps);
+              }}
+              onKeyDown={(e) =>
+                handleTabKey(e, app.steps, (v) => {
+                  const newApps = [...approaches];
+                  newApps[idx].steps = v;
+                  setApproaches(newApps);
+                })
+              }
+            />
+
+            {/* JAVA CODE */}
+            <Box sx={{ border: "1px solid #555", borderRadius: "6px" }}>
+              <Typography sx={{ fontWeight: 600, mb: 1 }}>Java Code</Typography>
+
+              <Editor
+                height="250px"
+                defaultLanguage="java"
+                theme={darkMode ? "vs-dark" : "vs-light"}
+                value={app.javaCode}
+                onChange={(val) => {
+                  const newApps = [...approaches];
+                  newApps[idx].javaCode = val || "";
+                  setApproaches(newApps);
+                }}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  automaticLayout: true,
+                  scrollBeyondLastLine: false,
+                  wordWrap: "on",
+                  smoothScrolling: true,
+                }}
+              />
+            </Box>
+
+            {/* INTUITION */}
+            <TextField
+              label="💭 Intuition Behind the Approach"
+              fullWidth
+              multiline
+              minRows={2}
+              maxRows={10}
+              sx={approachSx}
+              value={app.intuition || ""}
+              onChange={(e) => {
+                const newApps = [...approaches];
+                newApps[idx].intuition = e.target.value;
+                setApproaches(newApps);
+              }}
+              onKeyDown={(e) =>
+                handleTabKey(e, app.intuition || "", (v) => {
+                  const newApps = [...approaches];
+                  newApps[idx].intuition = v;
+                  setApproaches(newApps);
+                })
+              }
+            />
+
+            {/* COMPLEXITY */}
+            <TextField
+              label="Complexity (Time & Space)"
+              fullWidth
+              multiline
+              minRows={2}
+              maxRows={10}
+              sx={approachSx}
+              value={app.complexity}
+              onChange={(e) => {
+                const newApps = [...approaches];
+                newApps[idx].complexity = e.target.value;
+                setApproaches(newApps);
+              }}
+              onKeyDown={(e) =>
+                handleTabKey(e, app.complexity, (v) => {
+                  const newApps = [...approaches];
+                  newApps[idx].complexity = v;
+                  setApproaches(newApps);
+                })
+              }
+            />
           </Stack>
+        ))}
 
-          <TextField
-            label="Idea"
-            fullWidth
-            multiline
-            minRows={2}
-            maxRows={10}
-            value={app.idea}
-            onChange={(e) => {
-              const newApps = [...approaches];
-              newApps[idx].idea = e.target.value;
-              setApproaches(newApps);
-            }}
-            onKeyDown={(e) =>
-              handleTabKey(e, app.idea, (v) => {
-                const newApps = [...approaches];
-                newApps[idx].idea = v;
-                setApproaches(newApps);
-              })
-            }
-          />
-
-          <TextField
-            label="Steps"
-            fullWidth
-            multiline
-            minRows={2}
-            maxRows={10}
-            value={app.steps}
-            onChange={(e) => {
-              const newApps = [...approaches];
-              newApps[idx].steps = e.target.value;
-              setApproaches(newApps);
-            }}
-            onKeyDown={(e) =>
-              handleTabKey(e, app.steps, (v) => {
-                const newApps = [...approaches];
-                newApps[idx].steps = v;
-                setApproaches(newApps);
-              })
-            }
-          />
-
-          <TextField
-            label="Java Code"
-            fullWidth
-            multiline
-            minRows={2}
-            maxRows={10}
-            value={app.javaCode}
-            onChange={(e) => {
-              const newApps = [...approaches];
-              newApps[idx].javaCode = e.target.value;
-              setApproaches(newApps);
-            }}
-            onKeyDown={(e) =>
-              handleTabKey(e, app.javaCode, (v) => {
-                const newApps = [...approaches];
-                newApps[idx].javaCode = v;
-                setApproaches(newApps);
-              })
-            }
-          />
-
-          <TextField
-            label="💭 Intuition Behind the Approach"
-            fullWidth
-            multiline
-            minRows={2}
-            maxRows={10}
-            value={app.intuition || ""}
-            onChange={(e) => {
-              const newApps = [...approaches];
-              newApps[idx].intuition = e.target.value;
-              setApproaches(newApps);
-            }}
-            onKeyDown={(e) =>
-              handleTabKey(e, app.intuition || "", (v) => {
-                const newApps = [...approaches];
-                newApps[idx].intuition = v;
-                setApproaches(newApps);
-              })
-            }
-          />
-
-          <TextField
-            label="Complexity (Time & Space)"
-            fullWidth
-            multiline
-            minRows={2}
-            maxRows={10}
-            value={app.complexity}
-            onChange={(e) => {
-              const newApps = [...approaches];
-              newApps[idx].complexity = e.target.value;
-              setApproaches(newApps);
-            }}
-            onKeyDown={(e) =>
-              handleTabKey(e, app.complexity, (v) => {
-                const newApps = [...approaches];
-                newApps[idx].complexity = v;
-                setApproaches(newApps);
-              })
-            }
-          />
-        </Stack>
-      ))}
-
-      <Button
-        startIcon={<AddIcon />}
-        onClick={() =>
-          setApproaches([
-            ...approaches,
-            {
-              name: "",
-              idea: "",
-              steps: "",
-              javaCode: "",
-              intuition: "",
-              complexity: "",
-            },
-          ])
-        }
-      >
-        Add Approach
-      </Button>
-    </Stack>
+        <Button
+          startIcon={<AddIcon />}
+          onClick={() =>
+            setApproaches([
+              ...approaches,
+              {
+                name: "",
+                idea: "",
+                steps: "",
+                javaCode: "",
+                intuition: "",
+                complexity: "",
+              },
+            ])
+          }
+        >
+          Add Approach
+        </Button>
+      </Stack>
+    </Box>
   );
 }
